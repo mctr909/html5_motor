@@ -1,116 +1,77 @@
-<body><canvas id="target"></canvas></body>
+<body>
+	<table>
+		<tr>
+			<td rowspan="3"><canvas id="target"></canvas></td>
+			<td><input id="trbFreqMax" type="range" value=100 min=1 max=200 style="width:200px;" onmousemove="onScroll();"/></td>
+			<td><span id="lblFreqMax"></span></td>
+		</tr>
+		<tr>
+			<td><input id="trbAcc" type="range" value=50 min=0 max=100 style="width:200px;" onmousemove="onScroll();"/></td>
+			<td><span id="lblAcc"></span></td>
+		</tr>
+		<tr>
+			<td><input id="trbDeacc" type="range" value=10 min=0 max=100 style="width:200px;" onmousemove="onScroll();"/></td>
+			<td><span id="lblDeacc"></span></td>
+		</tr>
+	</table>
+</body>
 
-<script type="text/javascript" src="script/Drawer.js"></script>
-<script type="text/javascript" src="script/Math.js"></script>
+<script type="text/javascript" src="script/drawer.js"></script>
+<script type="text/javascript" src="script/math.js"></script>
+<script type="text/javascript" src="script/motor.js"></script>
 <script type="text/javascript">
-var drawer = new Drawer("target", 600, 600);
-var ROTOR_DIAMETER = 400;
-var ROTOR_POLE = 8;
-var STATOR_DIAMETER = 500;
-var STATOR_POLE = 4;
-var STATOR_GAP = 0.05;
-var MAGNET = 0.1;
-var MAGNET_GAP = 0.1;
+const ROTOR_DIAMETER = 300;
+const STATOR_DIAMETER = 320;
+const ROTOR_POLE = 8;
+const STATOR_POLE = 4;
+const STATOR_GAP = 0.2;
+const MAGNET_GAP = 0.2;
+const MAGNET_THICKNESS = 5;
 
-var rotor = {
-	magnet: [],
-	theta:0,
-	omega:1,
-	delta_omega: 1.01,
-	ofs: new vec3(ROTOR_DIAMETER*0.75, ROTOR_DIAMETER*0.75, 0)
-};
+let drawer = new Drawer("target", STATOR_DIAMETER+20, STATOR_DIAMETER+20);
+let motor = new Motor();
+let freqMax = 0.0;
+let freqMin = 0.0;
+let acc = 0.0;
+let deacc = 0.0;
 
-var stator = [];
+motor.pos = new vec3(STATOR_DIAMETER/2+10, STATOR_DIAMETER/2+10, 0);
+motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+4, STATOR_POLE, STATOR_GAP);
+motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, ROTOR_POLE, MAGNET_GAP);
 
-for (let p=0; p<3*STATOR_POLE; p++) {
-	let color;
-	switch (p%3) {
-	case 0:
-		color = [0, 127, 0]; break;
-	case 1:
-		color = [0, 232, 192]; break;
-	case 2:
-		color = [232, 232, 0];  break;
-	}
+onScroll();
+requestNextAnimationFrame(main);
 
-	let div = 8;
-	let point = new Array();
-	// outer
-	for (let d=0; d<=div; d++) {
-		let th = 8*Math.atan(1)*(p + d*(1-STATOR_GAP*2) / div + STATOR_GAP)/(3*STATOR_POLE);
-		let r = STATOR_DIAMETER/2;
-		point.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
-	}
-	// inner
-	for (let d=div; 0 <= d; d--) {
-		let th = 8*Math.atan(1)*(p + d*(1-STATOR_GAP*2) / div + STATOR_GAP)/(3*STATOR_POLE);
-		let r = STATOR_DIAMETER/2 - (STATOR_DIAMETER - ROTOR_DIAMETER) * 0.9 / 2;
-		point.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
-	}
-	stator.push({
-		point: point,
-		color: color,
-		voltage:0
-	});
-}
+function onScroll() {
+	freqMax = document.getElementById("trbFreqMax").value;
+	acc = 0.1*Math.pow(2.0, document.getElementById("trbAcc").value / 100)-0.1;
+	deacc = 0.1-0.1*Math.pow(2.0, document.getElementById("trbDeacc").value / 100);
+	acc = parseInt(acc*1000)/1000;
+	deacc = parseInt(deacc*1000)/1000;
+	document.getElementById("lblFreqMax").innerHTML = freqMax + "rpm";
+	document.getElementById("lblAcc").innerHTML = acc;
+	document.getElementById("lblDeacc").innerHTML = deacc;
 
-for (let p=0; p<ROTOR_POLE; p++) {
-	let color;
-	if (p%2==0) {
-		color = [255, 0, 0];
+	if(1.0<motor.delta_omega) {
+		motor.delta_omega = acc;
 	} else {
-		color = [0, 0, 255];
+		motor.delta_omega = deacc;
 	}
-	let div = 8;
-	let point = new Array();
-	// outer
-	for (let d=0; d<=div; d++) {
-		let th = 8*Math.atan(1)*(p + d*(1-MAGNET_GAP*2) / div + MAGNET_GAP)/ROTOR_POLE;
-		let r = ROTOR_DIAMETER/2;
-		point.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
-	}
-	// inner
-	for (let d=div; 0 <= d; d--) {
-		let th = 8*Math.atan(1)*(p + d*(1-MAGNET_GAP*2) / div + MAGNET_GAP)/ROTOR_POLE;
-		let r = (ROTOR_DIAMETER - ROTOR_DIAMETER * MAGNET)/2;
-		point.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
-	}
-	rotor.magnet.push({color: color, point: point});
 }
 
 function main() {
 	drawer.clear();
 
-	for(let p=0; p<rotor.magnet.length; p++) {
-		let point = new Array();
-		let magnet = rotor.magnet[p];
-		for (let i=0; i<magnet.point.length; i++) {
-			let x = magnet.point[i].X;
-			let y = magnet.point[i].Y;
-			let rot_x = x*Math.cos(rotor.theta) - y*Math.sin(rotor.theta);
-			let rot_y = x*Math.sin(rotor.theta) + y*Math.cos(rotor.theta);
-			point.push(new vec3(rot_x, rot_y, 0));
-		}
-		drawer.fillPolygon(point, rotor.ofs, magnet.color);
-	}
+	motor.draw(drawer);
 
-	for(let p=0; p<stator.length; p++) {
-		drawer.fillPolygon(stator[p].point, rotor.ofs, stator[p].color);
+	if (freqMax/60 < motor.omega) {
+		motor.delta_omega = deacc;
 	}
-
-	if (100/60 < rotor.omega) {
-		rotor.delta_omega = 1 - 1/600;
+	if (motor.omega < freqMin/60) {
+		motor.delta_omega = acc;
 	}
-	if (rotor.omega < 5/60) {
-		rotor.delta_omega = 1 + 1/100;
-	}
-	rotor.omega *= rotor.delta_omega;
-	rotor.theta += 8*Math.atan(1)*rotor.omega/60;
-	if (8*Math.atan(1) <= rotor.theta) {
-		rotor.theta -= 8*Math.atan(1);
-	}
+	motor.step();
 
 	requestNextAnimationFrame(main);
 }
-requestNextAnimationFrame(main);
 </script>
