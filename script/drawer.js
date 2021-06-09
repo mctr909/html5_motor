@@ -8,14 +8,19 @@ class Drawer {
 	 */
 	constructor(tagetId, width, height) {
 		this.mOffset = new vec3();
+		this.mCursor = new vec3();
+		this.mDrag = false;
+		this.__cursor = new vec3();
+
+		/** @type {HTMLCanvasElement} */
 		this.mElement = document.getElementById(tagetId);
 		this.mElement.width =width;
 		this.mElement.height = height;
-		this.mCursor = new vec3();
+
+		/** @type {CanvasRenderingContext2D} */
 		this.__ctx = this.mElement.getContext("2d");
 		this.__ctx.scale(1, 1);
-		this.__cursor = new vec3();
-		this.mDrag = false;
+
 		let th = this;
 		this.mElement.onmousedown = function(event){
 			th.mDrag = true;
@@ -27,6 +32,7 @@ class Drawer {
 			th.__cursor.X = event.offsetX;
 			th.__cursor.Y = event.offsetY;
 		};
+
 		window.requestNextAnimationFrame = (function () {
 			var originalWebkitRequestAnimationFrame = undefined;
 			var wrapper = undefined;

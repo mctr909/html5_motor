@@ -1,17 +1,45 @@
 <body>
-	<table>
+	<canvas id="motor"></canvas>
+	<canvas id="scope"></canvas>
+	<br/>
+	<table border="1">
 		<tr>
-			<td rowspan="3"><canvas id="target"></canvas></td>
-			<td><input id="trbFreqMax" type="range" value=100 min=1 max=200 style="width:200px;" onmousemove="onScroll();"/></td>
-			<td><span id="lblFreqMax"></span></td>
+			<td>最大回転数</td>
+			<td style="text-align: right;"><span id="lblFreqMax"></span></td>
+			<td><input id="trbFreqMax" type="range" value=50 min=1 max=100 style="width:200px;" onmousemove="onScrollFreq();"/></td>
 		</tr>
 		<tr>
-			<td><input id="trbAcc" type="range" value=50 min=0 max=100 style="width:200px;" onmousemove="onScroll();"/></td>
-			<td><span id="lblAcc"></span></td>
+			<td>加速度</td>
+			<td style="text-align: right;"><span id="lblAcc"></span></td>
+			<td><input id="trbAcc" type="range" value=50 min=0 max=100 style="width:200px;" onmousemove="onScrollAcc();"/></td>
 		</tr>
 		<tr>
-			<td><input id="trbDeacc" type="range" value=10 min=0 max=100 style="width:200px;" onmousemove="onScroll();"/></td>
-			<td><span id="lblDeacc"></span></td>
+			<td>減速度</td>
+			<td style="text-align: right;"><span id="lblDeacc"></span></td>
+			<td><input id="trbDeacc" type="range" value=5 min=0 max=100 style="width:200px;" onmousemove="onScrollDeacc();"/></td>
+		</tr>
+		<tr>
+			<td>ギャップ</td>
+			<td style="text-align: right;"><span id="lblGap"></span></td>
+			<td><input id="trbGap" type="range" value=10 min=1 max=40 style="width:200px;" onmousemove="onScrollGap();"/></td>
+		</tr>
+		<tr>
+			<td>ステーター極数</td>
+			<td style="text-align: right;"><select id="cmbStatorPole" onchange="onChangeStatorPole();" style="font-size: 16px;"></select></td>
+			<td rowspan="4" style="text-align: center;"><input id="btnPlayStop" type="button" onclick="onClickPlayStop();" />
+				<input id="btnStep" type="button" value="　ステップ　" onclick="onClickStep();" /></td>
+		</tr>
+		<tr>
+			<td>ローター極数</td>
+			<td style="text-align: right;"><select id="cmbRotorPole" onchange="onChangeRotorPole();" style="font-size: 16px;"></select></td>
+		</tr>
+		<tr>
+			<td>ステーターギャップ</td>
+			<td style="text-align: right;"><select id="cmbStatorGap" onchange="onChangeStatorGap();" style="font-size: 16px;"></select></td>
+		</tr>
+		<tr>
+			<td>マグネットギャップ</td>
+			<td style="text-align: right;"><select id="cmbMagnetGap" onchange="onChangeMagnetGap();" style="font-size: 16px;"></select></td>
 		</tr>
 	</table>
 </body>
@@ -21,57 +49,180 @@
 <script type="text/javascript" src="script/motor.js"></script>
 <script type="text/javascript">
 const ROTOR_DIAMETER = 300;
-const STATOR_DIAMETER = 320;
-const ROTOR_POLE = 8;
-const STATOR_POLE = 4;
-const STATOR_GAP = 0.2;
-const MAGNET_GAP = 0.2;
-const MAGNET_THICKNESS = 5;
+const STATOR_DIAMETER = 400;
+const MAGNET_THICKNESS = 20;
 
-let drawer = new Drawer("target", STATOR_DIAMETER+20, STATOR_DIAMETER+20);
+const STATOR_POLES = [
+	{name:"1", value:1, selected:false},
+	{name:"2", value:2, selected:true},
+	{name:"3", value:3, selected:false},
+	{name:"4", value:4, selected:false},
+	{name:"6", value:6, selected:false},
+	{name:"8", value:8, selected:false}
+];
+initCmb("cmbStatorPole", STATOR_POLES);
+
+const ROTOR_POLES = [
+	{name:" 2", value:2,  selected:false},
+	{name:" 4", value:4,  selected:false},
+	{name:" 6", value:6,  selected:false},
+	{name:" 8", value:8,  selected:true},
+	{name:"12", value:12, selected:false},
+	{name:"16", value:16, selected:false},
+	{name:"24", value:24, selected:false},
+	{name:"32", value:32, selected:false},
+];
+initCmb("cmbRotorPole", ROTOR_POLES);
+
+const STATOR_GAPS = [
+	{name:"  0", value:0,    selected:false},
+	{name:"1/8", value:1/8,  selected:false},
+	{name:"1/6", value:1/6,  selected:false},
+	{name:"1/4", value:1/4,  selected:false},
+	{name:"1/3", value:1/3,  selected:false},
+	{name:"1/2", value:1/2,  selected:true}
+];
+initCmb("cmbStatorGap", STATOR_GAPS);
+
+const MAGNET_GAPS = [
+	{name:"   0", value:0,    selected:true},
+	{name:"1/16", value:1/16, selected:false},
+	{name:" 1/8", value:1/8,  selected:false},
+	{name:" 1/4", value:1/4,  selected:false},
+	{name:" 1/2", value:1/2,  selected:false}
+];
+initCmb("cmbMagnetGap", MAGNET_GAPS);
+
+let drawerM = new Drawer("motor", STATOR_DIAMETER+20, STATOR_DIAMETER+20);
+let drawerS = new Drawer("scope", 500, 256);
+let isPlay = false;
+let isStep = false;
 let motor = new Motor();
+let gap = 20;
+let statorPole = 4;
+let statorGap = 0;
+let rotorPole = 16;
+let magnetGap = 0;
 let freqMax = 0.0;
 let freqMin = 0.0;
 let acc = 0.0;
 let deacc = 0.0;
 
 motor.pos = new vec3(STATOR_DIAMETER/2+10, STATOR_DIAMETER/2+10, 0);
-motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+4, STATOR_POLE, STATOR_GAP);
-motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, ROTOR_POLE, MAGNET_GAP);
+motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap);
+motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
 
-onScroll();
+drawerS.clear();
+onChangeStatorPole();
+onChangeStatorGap();
+onChangeRotorPole();
+onChangeMagnetGap();
+onScrollFreq();
+onScrollAcc();
+onScrollDeacc();
+onScrollGap();
+onClickPlayStop();
 requestNextAnimationFrame(main);
 
-function onScroll() {
-	freqMax = document.getElementById("trbFreqMax").value;
-	acc = 0.1*Math.pow(2.0, document.getElementById("trbAcc").value / 100)-0.1;
-	deacc = 0.1-0.1*Math.pow(2.0, document.getElementById("trbDeacc").value / 100);
-	acc = parseInt(acc*1000)/1000;
-	deacc = parseInt(deacc*1000)/1000;
-	document.getElementById("lblFreqMax").innerHTML = freqMax + "rpm";
-	document.getElementById("lblAcc").innerHTML = acc;
-	document.getElementById("lblDeacc").innerHTML = deacc;
-
-	if(1.0<motor.delta_omega) {
-		motor.delta_omega = acc;
-	} else {
-		motor.delta_omega = deacc;
+function initCmb(id, list) {
+	document.getElementById(id).innerHTML = "";
+	for(let i=0; i<list.length; i++) {
+		document.getElementById(id).innerHTML += "<option>" + list[i].name + "</option>";
+	}
+	for(let i=0; i<list.length; i++) {
+		if (list[i].selected) {
+			document.getElementById(id).selectedIndex = i;
+		}
 	}
 }
 
+function onChangeStatorPole() {
+	let idx = document.getElementById("cmbStatorPole").selectedIndex;
+	statorPole = STATOR_POLES[idx].value;
+	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap);
+}
+
+function onChangeStatorGap() {
+	let idx = document.getElementById("cmbStatorGap").selectedIndex;
+	statorGap = STATOR_GAPS[idx].value;
+	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap, false);
+}
+
+function onScrollGap() {
+	let tmp = 1*document.getElementById("trbGap").value;
+	if (tmp == gap) return;
+	gap = tmp;
+	document.getElementById("lblGap").innerHTML = gap;
+	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap, false);
+}
+
+function onChangeRotorPole() {
+	let idx = document.getElementById("cmbRotorPole").selectedIndex;
+	rotorPole = ROTOR_POLES[idx].value;
+	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
+}
+
+function onChangeMagnetGap() {
+	let idx = document.getElementById("cmbMagnetGap").selectedIndex;
+	magnetGap = MAGNET_GAPS[idx].value;
+	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
+}
+
+function onScrollFreq() {
+	freqMax = 1*document.getElementById("trbFreqMax").value;
+	document.getElementById("lblFreqMax").innerHTML = freqMax + "rpm";
+}
+
+function onScrollAcc() {
+	acc = 0.05*Math.pow(2.0, document.getElementById("trbAcc").value / 100)-0.05;
+	acc = parseInt(acc*1000)/1000;
+	document.getElementById("lblAcc").innerHTML = acc;
+	if(1.0<motor.delta) {
+		motor.delta = acc;
+	}
+}
+
+function onScrollDeacc() {
+	deacc = 0.05-0.05*Math.pow(2.0, document.getElementById("trbDeacc").value / 100);
+	deacc = parseInt(deacc*1000)/1000;
+	document.getElementById("lblDeacc").innerHTML = deacc;
+	if(motor.delta < 1.0) {
+		motor.delta = deacc;
+	}
+}
+
+function onClickPlayStop() {
+	if (isPlay) {
+		document.getElementById("btnPlayStop").value = "　再生　";
+	} else {
+		document.getElementById("btnPlayStop").value = "　停止　";
+	}
+	isPlay = !isPlay;
+}
+
+function onClickStep() {
+	isPlay = false;
+	isStep = true;
+	document.getElementById("btnPlayStop").value = "　再生　";
+}
+
 function main() {
-	drawer.clear();
+	if (isPlay || isStep) {
+		drawerM.clear();
 
-	motor.draw(drawer);
+		motor.draw(drawerM);
+		motor.drawWave(drawerS);
 
-	if (freqMax/60 < motor.omega) {
-		motor.delta_omega = deacc;
+		if (freqMax/60 < motor.omega) {
+			motor.delta = deacc;
+		}
+		if (motor.omega < freqMin/60) {
+			motor.delta = acc;
+		}
+
+		motor.step();
 	}
-	if (motor.omega < freqMin/60) {
-		motor.delta_omega = acc;
-	}
-	motor.step();
-
+	isStep = false;
 	requestNextAnimationFrame(main);
 }
 </script>
