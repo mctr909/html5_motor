@@ -326,6 +326,7 @@ class Motor {
 	__toHue(v) {
 		if (1 < v) v = 1;
 		if (v < -1) v = -1;
+		v = 2 * v / (v*v+1);
 		v = parseInt(1023*(v/2+0.5));
 
 		let r, g, b;
