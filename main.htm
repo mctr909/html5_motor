@@ -4,24 +4,9 @@
 	<br/>
 	<table border="1">
 		<tr>
-			<td>回転数</td>
-			<td style="text-align: right;"><span id="lblFreqMax"></span></td>
-			<td><input id="trbFreqMax" type="range" value=50 min=1 max=100 style="width:200px;" onmousemove="onScrollFreq();"/></td>
-		</tr>
-		<tr>
-			<td>加速時間</td>
-			<td style="text-align: right;"><span id="lblAcc"></span></td>
-			<td><input id="trbAcc" type="range" value=50 min=1 max=50 style="width:200px;" onmousemove="onScrollAcc();"/></td>
-		</tr>
-		<tr>
-			<td>ギャップ</td>
-			<td style="text-align: right;"><span id="lblGap"></span></td>
-			<td><input id="trbGap" type="range" value=10 min=1 max=40 style="width:200px;" onmousemove="onScrollGap();"/></td>
-		</tr>
-		<tr>
 			<td>ステーター極数</td>
 			<td style="text-align: right;"><select id="cmbStatorPole" onchange="onChangeStatorPole();" style="font-size: 16px;"></select></td>
-			<td rowspan="4" style="text-align: center;"><input id="btnPlayStop" type="button" onclick="onClickPlayStop();" />
+			<td rowspan="2" style="text-align: center;"><input id="btnPlayStop" type="button" onclick="onClickPlayStop();" />
 				<input id="btnStep" type="button" value="　ステップ　" onclick="onClickStep();" /></td>
 		</tr>
 		<tr>
@@ -30,11 +15,28 @@
 		</tr>
 		<tr>
 			<td>ステーターギャップ</td>
-			<td style="text-align: right;"><select id="cmbStatorGap" onchange="onChangeStatorGap();" style="font-size: 16px;"></select></td>
+			<td style="text-align: right;"><span id="lblStatorGap"></span></td>
+			<td><input id="trbStatorGap" type="range" value=6 min=0 max=12 style="width:200px;" onchange="onScrollStatorGap();" onmousemove="onScrollStatorGap();"/></td>
 		</tr>
 		<tr>
 			<td>マグネットギャップ</td>
-			<td style="text-align: right;"><select id="cmbMagnetGap" onchange="onChangeMagnetGap();" style="font-size: 16px;"></select></td>
+			<td style="text-align: right;"><span id="lblMagnetGap"></span></td>
+			<td><input id="trbMagnetGap" type="range" value=4 min=0 max=8 style="width:200px;" onchange="onScrollMagnetGap();" onmousemove="onScrollMagnetGap();"/></td>
+		</tr>
+		<tr>
+			<td>ギャップ</td>
+			<td style="text-align: right;"><span id="lblGap"></span></td>
+			<td><input id="trbGap" type="range" value=5 min=1 max=40 style="width:200px;" onchange="onScrollGap();" onmousemove="onScrollGap();"/></td>
+		</tr>
+		<tr>
+			<td>回転数</td>
+			<td style="text-align: right;"><span id="lblFreqMax"></span></td>
+			<td><input id="trbFreqMax" type="range" value=45 min=1 max=100 style="width:200px;" onchange="onScrollFreq();" onmousemove="onScrollFreq();"/></td>
+		</tr>
+		<tr>
+			<td>加速時間</td>
+			<td style="text-align: right;"><span id="lblAcc"></span></td>
+			<td><input id="trbAcc" type="range" value=50 min=1 max=50 style="width:200px;" onchange="onScrollAcc();" onmousemove="onScrollAcc();"/></td>
 		</tr>
 	</table>
 </body>
@@ -45,7 +47,7 @@
 <script type="text/javascript">
 const ROTOR_DIAMETER = 300;
 const STATOR_DIAMETER = 400;
-const MAGNET_THICKNESS = 10;
+const MAGNET_THICKNESS = 20;
 
 const STATOR_POLES = [
 	{name:"1", value:1, selected:false},
@@ -57,34 +59,17 @@ const STATOR_POLES = [
 ];
 const ROTOR_POLES = [
 	{name:" 2", value:2,  selected:false},
-	{name:" 4", value:4,  selected:false},
+	{name:" 4", value:4,  selected:true},
 	{name:" 6", value:6,  selected:false},
-	{name:" 8", value:8,  selected:true},
+	{name:" 8", value:8,  selected:false},
 	{name:"12", value:12, selected:false},
 	{name:"16", value:16, selected:false},
 	{name:"24", value:24, selected:false},
 	{name:"32", value:32, selected:false},
 ];
-const STATOR_GAPS = [
-	{name:"  0", value:0,    selected:false},
-	{name:"1/8", value:1/8,  selected:false},
-	{name:"1/6", value:1/6,  selected:false},
-	{name:"1/4", value:1/4,  selected:false},
-	{name:"1/3", value:1/3,  selected:false},
-	{name:"1/2", value:1/2,  selected:true}
-];
-const MAGNET_GAPS = [
-	{name:"   0", value:0,    selected:false},
-	{name:"1/16", value:1/16, selected:false},
-	{name:" 1/8", value:1/8,  selected:false},
-	{name:" 1/4", value:1/4,  selected:true},
-	{name:" 1/2", value:1/2,  selected:false}
-];
 
 initCmb("cmbStatorPole", STATOR_POLES);
 initCmb("cmbRotorPole", ROTOR_POLES);
-initCmb("cmbStatorGap", STATOR_GAPS);
-initCmb("cmbMagnetGap", MAGNET_GAPS);
 
 let drawerM = new Drawer("motor", STATOR_DIAMETER+20, STATOR_DIAMETER+20);
 let drawerS = new Drawer("scope", 500, 256);
@@ -103,9 +88,9 @@ motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
 
 drawerS.clear();
 onChangeStatorPole();
-onChangeStatorGap();
 onChangeRotorPole();
-onChangeMagnetGap();
+onScrollStatorGap();
+onScrollMagnetGap();
 onScrollFreq();
 onScrollAcc();
 onScrollGap();
@@ -130,10 +115,22 @@ function onChangeStatorPole() {
 	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap);
 }
 
-function onChangeStatorGap() {
-	let idx = document.getElementById("cmbStatorGap").selectedIndex;
-	statorGap = STATOR_GAPS[idx].value;
+function onChangeRotorPole() {
+	let idx = document.getElementById("cmbRotorPole").selectedIndex;
+	rotorPole = ROTOR_POLES[idx].value;
+	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
+}
+
+function onScrollStatorGap() {
+	statorGap = document.getElementById("trbStatorGap").value / 24;
+	document.getElementById("lblStatorGap").innerHTML = statorGap * 24 + "/24";
 	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap, false);
+}
+
+function onScrollMagnetGap() {
+	magnetGap = document.getElementById("trbMagnetGap").value / 16;
+	document.getElementById("lblMagnetGap").innerHTML = magnetGap * 16 + "/16";
+	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
 }
 
 function onScrollGap() {
@@ -142,18 +139,6 @@ function onScrollGap() {
 	gap = tmp;
 	document.getElementById("lblGap").innerHTML = gap;
 	motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap, false);
-}
-
-function onChangeRotorPole() {
-	let idx = document.getElementById("cmbRotorPole").selectedIndex;
-	rotorPole = ROTOR_POLES[idx].value;
-	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
-}
-
-function onChangeMagnetGap() {
-	let idx = document.getElementById("cmbMagnetGap").selectedIndex;
-	magnetGap = MAGNET_GAPS[idx].value;
-	motor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, rotorPole, magnetGap);
 }
 
 function onScrollFreq() {
