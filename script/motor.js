@@ -44,7 +44,7 @@ class Motor {
 	static get COLOR_U() { return [0, 127, 0] };
 	static get COLOR_V() { return [0, 212, 212] };
 	static get COLOR_W() { return [232, 232, 0] };
-	static get CALC_DIV() { return 96; }
+	static get CALC_DIV() { return 48; }
 
 	constructor() {
 		/** @type {Array<Slot>} */
@@ -57,6 +57,7 @@ class Motor {
 		this.delta_omega = 0.0;
 		this.target_omega = 0.0;
 		this.acc_time = 1.0;
+		this.__rotor_radius = 0;
 		this.__scopePos = 0;
 		this.__scopeU = new vec3();
 		this.__scopeV = new vec3();
@@ -145,6 +146,7 @@ class Motor {
 		const PI2 = 8*Math.atan(1);
 		const DIV = Motor.CALC_DIV / pole;
 		this.rotor = [];
+		this.__rotor_radius = diameter / 2;
 		for (let p=0; p<pole; p++) {
 			let maget = new Magnet();
 			if (p % 2 == 0) {
@@ -234,9 +236,9 @@ class Motor {
 			let sum_pole_v = 0.0;
 			let sum_pole_w = 0.0;
 			for (let idx_m=0; idx_m<calc_magnet.length; idx_m++) {
-				let ru = 1.0 + 0.125*pos_u.distance(calc_magnet[idx_m].point);
-				let rv = 1.0 + 0.125*pos_v.distance(calc_magnet[idx_m].point);
-				let rw = 1.0 + 0.125*pos_w.distance(calc_magnet[idx_m].point);
+				let ru = 0.1 + pos_u.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
+				let rv = 0.1 + pos_v.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
+				let rw = 0.1 + pos_w.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
 				if (calc_magnet[idx_m].is_north) {
 					sum_pole_u += 1.0 / ru / ru;
 					sum_pole_v += 1.0 / rv / rv;
@@ -247,9 +249,12 @@ class Motor {
 					sum_pole_w -= 1.0 / rw / rw;
 				}
 			}
-			slot_u.bemf_voltage[idx_s] = -(sum_pole_u - slot_u.magnetic_pole[idx_s]);
-			slot_v.bemf_voltage[idx_s] = -(sum_pole_v - slot_v.magnetic_pole[idx_s]);
-			slot_w.bemf_voltage[idx_s] = -(sum_pole_w - slot_w.magnetic_pole[idx_s]);
+			sum_pole_u /= 4 * calc_magnet.length;
+			sum_pole_v /= 4 * calc_magnet.length;
+			sum_pole_w /= 4 * calc_magnet.length;
+			slot_u.bemf_voltage[idx_s] = -4*(sum_pole_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -4*(sum_pole_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -4*(sum_pole_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_pole_u;
 			slot_v.magnetic_pole[idx_s] = sum_pole_v;
 			slot_w.magnetic_pole[idx_s] = sum_pole_w;
