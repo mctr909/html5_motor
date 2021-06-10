@@ -3,12 +3,12 @@
 
 class Slot {
 	constructor() {
+		/** @type {Array<number>} */
+		this.color = [];
 		/** @type {Array<vec3>} */
 		this.polygon = [];
 		/** @type {Array<vec3>} */
 		this.corner = [];
-		/** @type {Array<number>} */
-		this.color = [];
 		/** @type {Array<vec3>} */
 		this.magnetic_line = [];
 		/** @type {Array<vec3>} */
@@ -31,11 +31,11 @@ class Magnet {
 
 class Pole {
 	/**
-	 * @param {vec3} pos
+	 * @param {vec3} point
 	 * @param {boolean} north
 	 */
-	constructor(pos, north) {
-		this.pos = pos;
+	constructor(point, north) {
+		this.point = point;
 		this.is_north = north;
 	}
 }
@@ -51,7 +51,6 @@ class Motor {
 		this.stator = [];
 		/** @type {Array<Magnet>} */
 		this.rotor = [];
-		/** @type {vec3} */
 		this.pos = new vec3();
 		this.theta = 0.0;
 		this.omega = 0.0;
@@ -91,8 +90,8 @@ class Motor {
 			let bemf_r = inner_diameter / 2 + 5;
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (s + d*(1-gap) / DIV + gap*0.5) / SLOTS;
-				magnetic_line.push(new vec3(magetic_r*Math.cos(th), magetic_r*Math.sin(th), 0));
-				bemf_line.push(new vec3(bemf_r*Math.cos(th), bemf_r*Math.sin(th), 0));
+				magnetic_line.push(new vec3(magetic_r*Math.cos(th), magetic_r*Math.sin(th)));
+				bemf_line.push(new vec3(bemf_r*Math.cos(th), bemf_r*Math.sin(th)));
 				magnetic_pole.push(0.0);
 				bemf_voltage.push(0.0);
 			}
@@ -102,25 +101,25 @@ class Motor {
 			let inner = outer_diameter / 2 - (outer_diameter - inner_diameter) / 2;
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (s + d*(1-gap) / DIV + gap*0.5) / SLOTS;
-				polygon.push(new vec3(inner*Math.cos(th), inner*Math.sin(th), 0));
+				polygon.push(new vec3(inner*Math.cos(th), inner*Math.sin(th)));
 			}
 			// outer
 			let outer = outer_diameter / 2;
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (s + d*(1-gap) / DIV + gap*0.5) / SLOTS;
-				polygon.push(new vec3(outer*Math.cos(th), outer*Math.sin(th), 0));
+				polygon.push(new vec3(outer*Math.cos(th), outer*Math.sin(th)));
 			}
 
 			// outer corner
 			let corner = [];
 			for (let d=0; d<=3; d++) {
 				let th = PI2 * (s + d*(1-gap) / 3 + gap*0.5) / SLOTS;
-				corner.push(new vec3(outer*Math.cos(th), outer*Math.sin(th), 0));
+				corner.push(new vec3(outer*Math.cos(th), outer*Math.sin(th)));
 			}
 			// inner corner
 			for (let d=3; 0 <= d; d--) {
 				let th = PI2 * (s + d*(1-gap) / 3 + gap*0.5) / SLOTS;
-				corner.push(new vec3(1.01*inner*Math.cos(th), 1.01*inner*Math.sin(th), 0));
+				corner.push(new vec3(1.01*inner*Math.cos(th), 1.01*inner*Math.sin(th)));
 			}
 
 			if (clear) {
@@ -157,13 +156,13 @@ class Motor {
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
 				let r = diameter/2;
-				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
+				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
 			// inner
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
 				let r = diameter/2 - thickness;
-				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th), 0));
+				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
 			this.rotor.push(maget);
 		}
@@ -190,8 +189,8 @@ class Motor {
 				let y = magnet[idx_d].Y;
 				let rot_x = x*Math.cos(this.theta) - y*Math.sin(this.theta);
 				let rot_y = x*Math.sin(this.theta) + y*Math.cos(this.theta);
-				disp_pos.push(new vec3(rot_x, rot_y, 0));
-				calc_magnet.push(new Pole(new vec3(rot_x, rot_y, 0), idx_m%2 == 0));
+				disp_pos.push(new vec3(rot_x, rot_y));
+				calc_magnet.push(new Pole(new vec3(rot_x, rot_y), idx_m%2 == 0));
 			}
 			drawer.fillPolygon(disp_pos, this.pos, this.rotor[idx_m].color);
 		}
@@ -235,9 +234,9 @@ class Motor {
 			let sum_pole_v = 0.0;
 			let sum_pole_w = 0.0;
 			for (let idx_m=0; idx_m<calc_magnet.length; idx_m++) {
-				let ru = 1.0 + 0.125*pos_u.distance(calc_magnet[idx_m].pos);
-				let rv = 1.0 + 0.125*pos_v.distance(calc_magnet[idx_m].pos);
-				let rw = 1.0 + 0.125*pos_w.distance(calc_magnet[idx_m].pos);
+				let ru = 1.0 + 0.125*pos_u.distance(calc_magnet[idx_m].point);
+				let rv = 1.0 + 0.125*pos_v.distance(calc_magnet[idx_m].point);
+				let rw = 1.0 + 0.125*pos_w.distance(calc_magnet[idx_m].point);
 				if (calc_magnet[idx_m].is_north) {
 					sum_pole_u += 1.0 / ru / ru;
 					sum_pole_v += 1.0 / rv / rv;
@@ -248,9 +247,9 @@ class Motor {
 					sum_pole_w -= 1.0 / rw / rw;
 				}
 			}
-			slot_u.bemf_voltage[idx_s] = -(sum_pole_u - slot_u.magnetic_pole[idx_s]) / 2;
-			slot_v.bemf_voltage[idx_s] = -(sum_pole_v - slot_v.magnetic_pole[idx_s]) / 2;
-			slot_w.bemf_voltage[idx_s] = -(sum_pole_w - slot_w.magnetic_pole[idx_s]) / 2;
+			slot_u.bemf_voltage[idx_s] = -(sum_pole_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -(sum_pole_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -(sum_pole_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_pole_u;
 			slot_v.magnetic_pole[idx_s] = sum_pole_v;
 			slot_w.magnetic_pole[idx_s] = sum_pole_w;
@@ -305,9 +304,9 @@ class Motor {
 		let disp_u = drawer.mElement.height * (0.5-0.5*sum_du);
 		let disp_v = drawer.mElement.height * (0.5-0.5*sum_dv);
 		let disp_w = drawer.mElement.height * (0.5-0.5*sum_dw);
-		let posU = new vec3(this.__scopePos, disp_u, 0);
-		let posV = new vec3(this.__scopePos, disp_v, 0);
-		let posW = new vec3(this.__scopePos, disp_w, 0);
+		let posU = new vec3(this.__scopePos, disp_u);
+		let posV = new vec3(this.__scopePos, disp_v);
+		let posW = new vec3(this.__scopePos, disp_w);
 
 		drawer.drawLine(this.__scopeU, posU, Motor.COLOR_U, 1);
 		drawer.drawLine(this.__scopeV, posV, Motor.COLOR_V, 1);
@@ -320,11 +319,11 @@ class Motor {
 		if (drawer.mElement.width <= this.__scopePos) {
 			drawer.clear();
 			let zero = drawer.mElement.height/2;
-			drawer.drawLine(new vec3(0, zero, 0), new vec3(drawer.mElement.width, zero, 0), [255, 0, 0], 1);
+			drawer.drawLine(new vec3(0, zero), new vec3(drawer.mElement.width, zero), [255, 0, 0], 1);
 			this.__scopePos = 0;
-			this.__scopeU = new vec3(0, zero, 0);
-			this.__scopeV = new vec3(0, zero, 0);
-			this.__scopeW = new vec3(0, zero, 0);
+			this.__scopeU = new vec3(0, zero);
+			this.__scopeV = new vec3(0, zero);
+			this.__scopeW = new vec3(0, zero);
 		}
 	}
 
