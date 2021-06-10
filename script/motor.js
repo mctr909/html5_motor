@@ -10,20 +10,9 @@ class Slot {
 		/** @type {Array<number>} */
 		this.color = [];
 		/** @type {Array<number>} */
-		this.norm_voltage = [];
+		this.magnetic_pole = [];
 		/** @type {Array<number>} */
-		this.diff_voltage = [];
-	}
-}
-
-class Pole {
-	/**
-	 * @param {vec3} pos 
-	 * @param {boolean} positive 
-	 */
-	constructor(pos, positive) {
-		this.pos = pos;
-		this.isPositive = positive;
+		this.bemf_voltage = [];
 	}
 }
 
@@ -36,11 +25,22 @@ class Magnet {
 	}
 }
 
+class Pole {
+	/**
+	 * @param {vec3} pos
+	 * @param {boolean} north
+	 */
+	constructor(pos, north) {
+		this.pos = pos;
+		this.is_north = north;
+	}
+}
+
 class Motor {
 	static get COLOR_U() { return [0, 127, 0] };
 	static get COLOR_V() { return [0, 212, 212] };
 	static get COLOR_W() { return [232, 232, 0] };
-	static get CALC_DIV() { return 192; }
+	static get CALC_DIV() { return 96; }
 
 	constructor() {
 		/** @type {Array<Slot>} */
@@ -51,7 +51,9 @@ class Motor {
 		this.pos = new vec3();
 		this.theta = 0.0;
 		this.omega = 0.0;
-		this.delta = 0.0;
+		this.delta_omega = 0.0;
+		this.target_omega = 0.0;
+		this.acc_time = 1.0;
 		this.__scopePos = 0;
 		this.__scopeU = new vec3();
 		this.__scopeV = new vec3();
@@ -78,14 +80,14 @@ class Motor {
 
 			// inner
 			let point = [];
-			let norm_voltage = [];
-			let diff_voltage = [];
+			let magnetic_pole = [];
+			let bemf_voltage = [];
 			let inner = outer_diameter / 2 - (outer_diameter - inner_diameter) / 2;
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (s + d*(1-gap) / DIV + gap*0.5) / SLOTS;
 				point.push(new vec3(inner*Math.cos(th), inner*Math.sin(th), 0));
-				norm_voltage.push(0.0);
-				diff_voltage.push(0.0);
+				magnetic_pole.push(0.0);
+				bemf_voltage.push(0.0);
 			}
 			// outer
 			let outer = outer_diameter / 2;
@@ -111,8 +113,8 @@ class Motor {
 				slot.color = color;
 				slot.point = point;
 				slot.corner = corner;
-				slot.norm_voltage = norm_voltage;
-				slot.diff_voltage = diff_voltage;
+				slot.magnetic_pole = magnetic_pole;
+				slot.bemf_voltage = bemf_voltage;
 				this.stator.push(slot);
 			} else {
 				this.stator[s].point = point;
@@ -156,9 +158,10 @@ class Motor {
 		let slot_v = this.stator[1];
 		let slot_w = this.stator[2];
 
-		// rotor
 		/** @type {Array<Pole>} */
 		let calc_magnet = [];
+
+		// rotor
 		for(let idx_m=0; idx_m<this.rotor.length; idx_m++) {
 			/** @type {Array<vec3>} */
 			let disp_pos = [];
@@ -209,35 +212,35 @@ class Motor {
 			let pos_u = slot_u.point[idx_s];
 			let pos_v = slot_v.point[idx_s];
 			let pos_w = slot_w.point[idx_s];
-			let sum_u = 0.0;
-			let sum_v = 0.0;
-			let sum_w = 0.0;
+			let sum_pole_u = 0.0;
+			let sum_pole_v = 0.0;
+			let sum_pole_w = 0.0;
 			for (let idx_m=0; idx_m<calc_magnet.length; idx_m++) {
 				let ru = 1.0 + 0.125*pos_u.distance(calc_magnet[idx_m].pos);
 				let rv = 1.0 + 0.125*pos_v.distance(calc_magnet[idx_m].pos);
 				let rw = 1.0 + 0.125*pos_w.distance(calc_magnet[idx_m].pos);
-				if (calc_magnet[idx_m].isPositive) {
-					sum_u += 1.0 / ru / ru;
-					sum_v += 1.0 / rv / rv;
-					sum_w += 1.0 / rw / rw;
+				if (calc_magnet[idx_m].is_north) {
+					sum_pole_u += 1.0 / ru / ru;
+					sum_pole_v += 1.0 / rv / rv;
+					sum_pole_w += 1.0 / rw / rw;
 				} else {
-					sum_u -= 1.0 / ru / ru;
-					sum_v -= 1.0 / rv / rv;
-					sum_w -= 1.0 / rw / rw;
+					sum_pole_u -= 1.0 / ru / ru;
+					sum_pole_v -= 1.0 / rv / rv;
+					sum_pole_w -= 1.0 / rw / rw;
 				}
 			}
-			slot_u.diff_voltage[idx_s] = (sum_u - slot_u.norm_voltage[idx_s]) / 2;
-			slot_v.diff_voltage[idx_s] = (sum_v - slot_v.norm_voltage[idx_s]) / 2;
-			slot_w.diff_voltage[idx_s] = (sum_w - slot_w.norm_voltage[idx_s]) / 2;
-			slot_u.norm_voltage[idx_s] = sum_u;
-			slot_v.norm_voltage[idx_s] = sum_v;
-			slot_w.norm_voltage[idx_s] = sum_w;
+			slot_u.bemf_voltage[idx_s] = -(sum_pole_u - slot_u.magnetic_pole[idx_s]) / 2;
+			slot_v.bemf_voltage[idx_s] = -(sum_pole_v - slot_v.magnetic_pole[idx_s]) / 2;
+			slot_w.bemf_voltage[idx_s] = -(sum_pole_w - slot_w.magnetic_pole[idx_s]) / 2;
+			slot_u.magnetic_pole[idx_s] = sum_pole_u;
+			slot_v.magnetic_pole[idx_s] = sum_pole_v;
+			slot_w.magnetic_pole[idx_s] = sum_pole_w;
 		}
 
 		let posA = new vec3();
 		let posB = new vec3();
 		for(let idx_s=0; idx_s<this.stator.length; idx_s++) {
-			let slot_v = this.stator[idx_s%3].diff_voltage;
+			let slot_v = this.stator[idx_s%3].bemf_voltage;
 			let slot_p = this.stator[idx_s].point;
 			for(let idx_v=0, idx_p=slot_p.length-2; idx_v<slot_v.length-1; idx_v++, idx_p--) {
 				let dv = (slot_v[idx_v] + slot_v[idx_v+1]) / 2;
@@ -255,31 +258,31 @@ class Motor {
 		let slot_u = this.stator[0];
 		let slot_v = this.stator[1];
 		let slot_w = this.stator[2];
-		let sum_u = 0.0;
-		let sum_v = 0.0;
-		let sum_w = 0.0;
-		for(let i=0; i<slot_u.diff_voltage.length; i++) {
-			sum_u += slot_u.diff_voltage[i];
-			sum_v += slot_v.diff_voltage[i];
-			sum_w += slot_w.diff_voltage[i];
+		let sum_du = 0.0;
+		let sum_dv = 0.0;
+		let sum_dw = 0.0;
+		for(let i=0; i<slot_u.bemf_voltage.length; i++) {
+			sum_du += slot_u.bemf_voltage[i];
+			sum_dv += slot_v.bemf_voltage[i];
+			sum_dw += slot_w.bemf_voltage[i];
 		}
-		sum_u /= slot_u.diff_voltage.length;
-		sum_v /= slot_u.diff_voltage.length;
-		sum_w /= slot_u.diff_voltage.length;
+		sum_du /= slot_u.bemf_voltage.length;
+		sum_dv /= slot_u.bemf_voltage.length;
+		sum_dw /= slot_u.bemf_voltage.length;
 
-		if (1 < sum_u) sum_u = 1;
-		if (sum_u < -1) sum_u = -1;
-		if (1 < sum_v) sum_v = 1;
-		if (sum_v < -1) sum_v = -1;
-		if (1 < sum_w) sum_w = 1;
-		if (sum_w < -1) sum_w = -1;
+		if (1 < sum_du) sum_du = 1;
+		if (sum_du < -1) sum_du = -1;
+		if (1 < sum_dv) sum_dv = 1;
+		if (sum_dv < -1) sum_dv = -1;
+		if (1 < sum_dw) sum_dw = 1;
+		if (sum_dw < -1) sum_dw = -1;
 
-		sum_u = drawer.mElement.height * (0.5-0.5*sum_u);
-		sum_v = drawer.mElement.height * (0.5-0.5*sum_v);
-		sum_w = drawer.mElement.height * (0.5-0.5*sum_w);
-		let posU = new vec3(this.__scopePos, sum_u, 0);
-		let posV = new vec3(this.__scopePos, sum_v, 0);
-		let posW = new vec3(this.__scopePos, sum_w, 0);
+		let disp_u = drawer.mElement.height * (0.5-0.5*sum_du);
+		let disp_v = drawer.mElement.height * (0.5-0.5*sum_dv);
+		let disp_w = drawer.mElement.height * (0.5-0.5*sum_dw);
+		let posU = new vec3(this.__scopePos, disp_u, 0);
+		let posV = new vec3(this.__scopePos, disp_v, 0);
+		let posW = new vec3(this.__scopePos, disp_w, 0);
 
 		drawer.drawLine(this.__scopeU, posU, Motor.COLOR_U, 1);
 		drawer.drawLine(this.__scopeV, posV, Motor.COLOR_V, 1);
@@ -301,7 +304,15 @@ class Motor {
 	}
 
 	step() {
-		this.omega += this.delta;
+		this.omega += this.delta_omega;
+		this.theta += 8*Math.atan(1)*this.omega / 60;
+		if (8*Math.atan(1) <= this.theta) {
+			this.theta -= 8*Math.atan(1);
+		}
+	}
+
+	stepConstAccTime() {
+		this.omega += (this.target_omega - this.omega) / this.acc_time;
 		this.theta += 8*Math.atan(1)*this.omega / 60;
 		if (8*Math.atan(1) <= this.theta) {
 			this.theta -= 8*Math.atan(1);

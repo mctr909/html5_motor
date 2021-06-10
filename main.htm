@@ -4,19 +4,14 @@
 	<br/>
 	<table border="1">
 		<tr>
-			<td>最大回転数</td>
+			<td>回転数</td>
 			<td style="text-align: right;"><span id="lblFreqMax"></span></td>
 			<td><input id="trbFreqMax" type="range" value=50 min=1 max=100 style="width:200px;" onmousemove="onScrollFreq();"/></td>
 		</tr>
 		<tr>
-			<td>加速度</td>
+			<td>加速時間</td>
 			<td style="text-align: right;"><span id="lblAcc"></span></td>
-			<td><input id="trbAcc" type="range" value=50 min=0 max=100 style="width:200px;" onmousemove="onScrollAcc();"/></td>
-		</tr>
-		<tr>
-			<td>減速度</td>
-			<td style="text-align: right;"><span id="lblDeacc"></span></td>
-			<td><input id="trbDeacc" type="range" value=5 min=0 max=100 style="width:200px;" onmousemove="onScrollDeacc();"/></td>
+			<td><input id="trbAcc" type="range" value=50 min=1 max=50 style="width:200px;" onmousemove="onScrollAcc();"/></td>
 		</tr>
 		<tr>
 			<td>ギャップ</td>
@@ -60,8 +55,6 @@ const STATOR_POLES = [
 	{name:"6", value:6, selected:false},
 	{name:"8", value:8, selected:false}
 ];
-initCmb("cmbStatorPole", STATOR_POLES);
-
 const ROTOR_POLES = [
 	{name:" 2", value:2,  selected:false},
 	{name:" 4", value:4,  selected:false},
@@ -72,8 +65,6 @@ const ROTOR_POLES = [
 	{name:"24", value:24, selected:false},
 	{name:"32", value:32, selected:false},
 ];
-initCmb("cmbRotorPole", ROTOR_POLES);
-
 const STATOR_GAPS = [
 	{name:"  0", value:0,    selected:false},
 	{name:"1/8", value:1/8,  selected:false},
@@ -82,15 +73,17 @@ const STATOR_GAPS = [
 	{name:"1/3", value:1/3,  selected:false},
 	{name:"1/2", value:1/2,  selected:true}
 ];
-initCmb("cmbStatorGap", STATOR_GAPS);
-
 const MAGNET_GAPS = [
-	{name:"   0", value:0,    selected:true},
+	{name:"   0", value:0,    selected:false},
 	{name:"1/16", value:1/16, selected:false},
 	{name:" 1/8", value:1/8,  selected:false},
-	{name:" 1/4", value:1/4,  selected:false},
+	{name:" 1/4", value:1/4,  selected:true},
 	{name:" 1/2", value:1/2,  selected:false}
 ];
+
+initCmb("cmbStatorPole", STATOR_POLES);
+initCmb("cmbRotorPole", ROTOR_POLES);
+initCmb("cmbStatorGap", STATOR_GAPS);
 initCmb("cmbMagnetGap", MAGNET_GAPS);
 
 let drawerM = new Drawer("motor", STATOR_DIAMETER+20, STATOR_DIAMETER+20);
@@ -103,10 +96,6 @@ let statorPole = 4;
 let statorGap = 0;
 let rotorPole = 16;
 let magnetGap = 0;
-let freqMax = 0.0;
-let freqMin = 0.0;
-let acc = 0.0;
-let deacc = 0.0;
 
 motor.pos = new vec3(STATOR_DIAMETER/2+10, STATOR_DIAMETER/2+10, 0);
 motor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gap, statorPole, statorGap);
@@ -119,7 +108,6 @@ onChangeRotorPole();
 onChangeMagnetGap();
 onScrollFreq();
 onScrollAcc();
-onScrollDeacc();
 onScrollGap();
 onClickPlayStop();
 requestNextAnimationFrame(main);
@@ -169,26 +157,15 @@ function onChangeMagnetGap() {
 }
 
 function onScrollFreq() {
-	freqMax = 1*document.getElementById("trbFreqMax").value;
-	document.getElementById("lblFreqMax").innerHTML = freqMax + "rpm";
+	let rpm = 1*document.getElementById("trbFreqMax").value;
+	document.getElementById("lblFreqMax").innerHTML = rpm + "rpm";
+	motor.target_omega = rpm/60;
 }
 
 function onScrollAcc() {
-	acc = 0.05*Math.pow(2.0, document.getElementById("trbAcc").value / 100)-0.05;
-	acc = parseInt(acc*1000)/1000;
+	let acc = document.getElementById("trbAcc").value;
 	document.getElementById("lblAcc").innerHTML = acc;
-	if(1.0<motor.delta) {
-		motor.delta = acc;
-	}
-}
-
-function onScrollDeacc() {
-	deacc = 0.05-0.05*Math.pow(2.0, document.getElementById("trbDeacc").value / 100);
-	deacc = parseInt(deacc*1000)/1000;
-	document.getElementById("lblDeacc").innerHTML = deacc;
-	if(motor.delta < 1.0) {
-		motor.delta = deacc;
-	}
+	motor.acc_time = acc;
 }
 
 function onClickPlayStop() {
@@ -209,18 +186,9 @@ function onClickStep() {
 function main() {
 	if (isPlay || isStep) {
 		drawerM.clear();
-
 		motor.draw(drawerM);
 		motor.drawWave(drawerS);
-
-		if (freqMax/60 < motor.omega) {
-			motor.delta = deacc;
-		}
-		if (motor.omega < freqMin/60) {
-			motor.delta = acc;
-		}
-
-		motor.step();
+		motor.stepConstAccTime();
 	}
 	isStep = false;
 	requestNextAnimationFrame(main);
