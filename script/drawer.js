@@ -181,13 +181,14 @@ class Drawer {
 	/**
 	 * @param {vec3} c
 	 * @param {number} r
+	 * @param {vec3} ofs
 	 * @param {[number, number, number]} color
 	 */
-	fillCircle(c, r, color = [0,0,0]) {
+	fillCircle(c, r, ofs=new vec3(), color = [0,0,0]) {
 		this.ctx.beginPath();
 		this.ctx.arc(
-			c.X + this.mOffset.X,
-			c.Y + this.mOffset.Y,
+			c.X + ofs.X,
+			c.Y + ofs.Y,
 			r,
 			0 * Math.PI / 180,
 			360 * Math.PI / 180,

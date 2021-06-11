@@ -1,6 +1,39 @@
 /// <reference path="math.js" />
 /// <reference path="drawer.js" />
 
+class Pole {
+	/**
+	 * @param {vec3} point
+	 * @param {number} pole
+	 */
+	constructor(point, pole) {
+		this.point = point;
+		this.pole = pole;
+	}
+}
+
+class Magnet {
+	/**
+	 * @param {boolean} north 
+	 */
+	constructor(north) {
+		/** @type {Array<vec3>} */
+		this.polygon = [];
+		/** @type {Array<number>} */
+		this.color = [];
+		this.is_north = north;
+	}
+}
+
+class Rotor {
+	constructor() {
+		/** @type {Array<Magnet>} */
+		this.magnet = [];
+		/** @type {Array<Pole>} */
+		this.core_pole = [];
+	}
+}
+
 class Slot {
 	constructor() {
 		/** @type {Array<number>} */
@@ -20,43 +53,19 @@ class Slot {
 	}
 }
 
-class Magnet {
-	/**
-	 * @param {boolean} north 
-	 */
-	constructor(north) {
-		/** @type {Array<vec3>} */
-		this.polygon = [];
-		/** @type {Array<number>} */
-		this.color = [];
-		this.is_north = north;
-	}
-}
-
-class Pole {
-	/**
-	 * @param {vec3} point
-	 * @param {boolean} north
-	 */
-	constructor(point, north) {
-		this.point = point;
-		this.is_north = north;
-	}
-}
-
 class Motor {
 	static get COLOR_U() { return [0, 127, 0] };
 	static get COLOR_V() { return [0, 192, 192] };
 	static get COLOR_W() { return [212, 168, 0] };
 	static get COLOR_POLE_N() { return [255, 0, 0]};
 	static get COLOR_POLE_S() { return [0, 0, 255]};
-	static get CALC_DIV() { return 64; }
+	static get CALC_DIV() { return 32; }
 
 	constructor() {
 		/** @type {Array<Slot>} */
 		this.stator = [];
-		/** @type {Array<Magnet>} */
-		this.rotor = [];
+		/** @type {Rotor} */
+		this.rotor = null;
 		this.pos = new vec3();
 		this.theta = 0.0;
 		this.omega = 0.0;
@@ -151,8 +160,11 @@ class Motor {
 	createRotor(diameter, thickness, pole, gap) {
 		const PI2 = 8*Math.atan(1);
 		const DIV = parseInt(Motor.CALC_DIV / pole);
-		this.rotor = [];
 		this.__rotor_radius = diameter;
+		this.rotor = new Rotor();
+
+		// magnet
+		this.rotor.magnet = [];
 		for (let p=0; p<pole; p++) {
 			let maget_outer = new Magnet(p%2==0);
 			let maget_inner = new Magnet(p%2==1);
@@ -166,28 +178,40 @@ class Motor {
 			// outer
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
-				let r = diameter/2;
+				let r = diameter/2 - thickness/2;
 				maget_outer.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
-				let r = diameter/2 - thickness/2;
+				let r = diameter/2 - thickness/2 - thickness/2;
 				maget_outer.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
-			this.rotor.push(maget_outer);
+			this.rotor.magnet.push(maget_outer);
 
 			// inner
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
-				let r = diameter/2 - thickness/2;
+				let r = diameter/2 - thickness/2 - thickness/2;
 				maget_inner.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
-				let r = diameter/2 - thickness;
+				let r = diameter/2 - thickness - thickness/2;
 				maget_inner.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
-			this.rotor.push(maget_inner);
+			this.rotor.magnet.push(maget_inner);
+		}
+
+		// core
+		this.rotor.core_pole = [];
+		let shaft_radius = 25;
+		let core_radius = diameter/2 - thickness*0;
+		for (let idx_r=shaft_radius; idx_r<=core_radius; idx_r+=5) {
+			let div = parseInt(idx_r * PI2 / 5);
+			for (let d=0; d<div; d++) {
+				let th = PI2 * d / div;
+				this.rotor.core_pole.push(new Pole(new vec3(idx_r*Math.cos(th), idx_r*Math.sin(th)), 0));
+			}
 		}
 	}
 
@@ -199,26 +223,44 @@ class Motor {
 		let slot_v = this.stator[1];
 		let slot_w = this.stator[2];
 
+		// magnet
 		/** @type {Array<Pole>} */
 		let calc_magnet = [];
-
-		// rotor
-		for(let idx_m=0; idx_m<this.rotor.length; idx_m++) {
-			/** @type {Array<vec3>} */
-			let disp_pos = [];
-			let magnet = this.rotor[idx_m].polygon;
-			let is_north = this.rotor[idx_m].is_north;
-			for (let idx_d=0; idx_d<magnet.length; idx_d++) {
-				let x = magnet[idx_d].X;
-				let y = magnet[idx_d].Y;
+		for(let idx_m=0; idx_m<this.rotor.magnet.length; idx_m++) {
+			let magnet = this.rotor.magnet[idx_m];
+			let magnet_pos = magnet.polygon;
+			let magnet_pole = magnet.is_north ? 1 : -1;
+			for (let idx_d=0; idx_d<magnet_pos.length; idx_d++) {
+				let x = magnet_pos[idx_d].X;
+				let y = magnet_pos[idx_d].Y;
 				let rot_pos = new vec3(
 					x*Math.cos(this.theta) - y*Math.sin(this.theta),
 					x*Math.sin(this.theta) + y*Math.cos(this.theta)
 				);
-				disp_pos.push(rot_pos);
-				calc_magnet.push(new Pole(rot_pos, is_north));
+				calc_magnet.push(new Pole(rot_pos, magnet_pole));
 			}
-			drawer.fillPolygon(disp_pos, this.pos, this.rotor[idx_m].color);
+		}
+
+		// core
+		/** @type {Array<Pole>} */
+		let calc_pole = [];
+		let core = this.rotor.core_pole;
+		for (let idx_c=0; idx_c<core.length; idx_c++) {
+			let x = core[idx_c].point.X;
+			let y = core[idx_c].point.Y;
+			let rot_pos = new vec3(
+				x*Math.cos(this.theta) - y*Math.sin(this.theta),
+				x*Math.sin(this.theta) + y*Math.cos(this.theta)
+			);
+			let sum_pole = 0.0;
+			for (let idx_m=0; idx_m<calc_magnet.length; idx_m++) {
+				let r = 1 + 0.01 * rot_pos.distance(calc_magnet[idx_m].point);
+				sum_pole += calc_magnet[idx_m].pole / r / r;
+			}
+			core[idx_c].pole += (sum_pole - core[idx_c].pole);
+			sum_pole = core[idx_c].pole;
+			calc_pole.push(new Pole(rot_pos, sum_pole));
+			drawer.fillCircle(rot_pos, 4, this.pos, this.__toHue(sum_pole));
 		}
 
 		// stator
@@ -259,26 +301,20 @@ class Motor {
 			let sum_pole_u = 0.0;
 			let sum_pole_v = 0.0;
 			let sum_pole_w = 0.0;
-			for (let idx_m=0; idx_m<calc_magnet.length; idx_m++) {
-				let ru = 0.1 + pos_u.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
-				let rv = 0.1 + pos_v.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
-				let rw = 0.1 + pos_w.distance(calc_magnet[idx_m].point) / this.__rotor_radius;
-				if (calc_magnet[idx_m].is_north) {
-					sum_pole_u += 1.0 / ru / ru;
-					sum_pole_v += 1.0 / rv / rv;
-					sum_pole_w += 1.0 / rw / rw;
-				} else {
-					sum_pole_u -= 1.0 / ru / ru;
-					sum_pole_v -= 1.0 / rv / rv;
-					sum_pole_w -= 1.0 / rw / rw;
-				}
+			for (let idx_m=0; idx_m<calc_pole.length; idx_m++) {
+				let ru = 0.1 + pos_u.distance(calc_pole[idx_m].point) / this.__rotor_radius;
+				let rv = 0.1 + pos_v.distance(calc_pole[idx_m].point) / this.__rotor_radius;
+				let rw = 0.1 + pos_w.distance(calc_pole[idx_m].point) / this.__rotor_radius;
+				sum_pole_u += calc_pole[idx_m].pole / ru / ru;
+				sum_pole_v += calc_pole[idx_m].pole / rv / rv;
+				sum_pole_w += calc_pole[idx_m].pole / rw / rw;
 			}
-			sum_pole_u /= calc_magnet.length;
-			sum_pole_v /= calc_magnet.length;
-			sum_pole_w /= calc_magnet.length;
-			slot_u.bemf_voltage[idx_s] = -2*(sum_pole_u - slot_u.magnetic_pole[idx_s]);
-			slot_v.bemf_voltage[idx_s] = -2*(sum_pole_v - slot_v.magnetic_pole[idx_s]);
-			slot_w.bemf_voltage[idx_s] = -2*(sum_pole_w - slot_w.magnetic_pole[idx_s]);
+			sum_pole_u /= calc_pole.length;
+			sum_pole_v /= calc_pole.length;
+			sum_pole_w /= calc_pole.length;
+			slot_u.bemf_voltage[idx_s] = -4*(sum_pole_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -4*(sum_pole_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -4*(sum_pole_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_pole_u;
 			slot_v.magnetic_pole[idx_s] = sum_pole_v;
 			slot_w.magnetic_pole[idx_s] = sum_pole_w;

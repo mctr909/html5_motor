@@ -1,6 +1,6 @@
-const ROTOR_DIAMETER = 250;
-const STATOR_DIAMETER = 400;
-const MAGNET_THICKNESS = 30;
+const ROTOR_DIAMETER = 200;
+const STATOR_DIAMETER = 300;
+const MAGNET_THICKNESS = 20;
 
 const STATOR_POLES = [
 	{name:"1", value:1, selected:false},
@@ -12,9 +12,7 @@ const ROTOR_POLES = [
 	{name:" 2", value:2,  selected:false},
 	{name:" 4", value:4,  selected:true},
 	{name:" 6", value:6,  selected:false},
-	{name:" 8", value:8,  selected:false},
-	{name:"12", value:12, selected:false},
-	{name:"16", value:16, selected:false}
+	{name:" 8", value:8,  selected:false}
 ];
 
 initCmb("cmbStatorPole", STATOR_POLES);
