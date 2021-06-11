@@ -74,7 +74,7 @@ function onScrollStatorGap() {
 	let tmp = document.getElementById("trbStatorGap").value / 24;
 	if (tmp == gStatorGap) return;
 	gStatorGap = tmp;
-	document.getElementById("lblStatorGap").innerHTML = gStatorGap * 24 + "/24";
+	document.getElementById("lblStatorGap").innerHTML = gStatorGap*24 + "/24";
 	gMotor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gGap, gStatorPole, gStatorGap, false);
 }
 

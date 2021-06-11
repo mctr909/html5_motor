@@ -46,9 +46,11 @@ class Pole {
 
 class Motor {
 	static get COLOR_U() { return [0, 127, 0] };
-	static get COLOR_V() { return [0, 212, 212] };
-	static get COLOR_W() { return [232, 232, 0] };
-	static get CALC_DIV() { return 96; }
+	static get COLOR_V() { return [0, 192, 192] };
+	static get COLOR_W() { return [212, 168, 0] };
+	static get COLOR_POLE_N() { return [255, 0, 0]};
+	static get COLOR_POLE_S() { return [0, 0, 255]};
+	static get CALC_DIV() { return 64; }
 
 	constructor() {
 		/** @type {Array<Slot>} */
@@ -71,7 +73,7 @@ class Motor {
 	createStator(outer_diameter, inner_diameter, pole, gap, clear=true) {
 		const PI2 = 8*Math.atan(1);
 		const SLOTS = 3 * pole;
-		const DIV = Motor.CALC_DIV / pole;
+		const DIV = parseInt(Motor.CALC_DIV / pole);
 		if (clear) {
 			this.stator = [];
 		}
@@ -148,18 +150,18 @@ class Motor {
 
 	createRotor(diameter, thickness, pole, gap) {
 		const PI2 = 8*Math.atan(1);
-		const DIV = Motor.CALC_DIV / pole;
+		const DIV = parseInt(Motor.CALC_DIV / pole);
 		this.rotor = [];
 		this.__rotor_radius = diameter;
 		for (let p=0; p<pole; p++) {
 			let maget_outer = new Magnet(p%2==0);
 			let maget_inner = new Magnet(p%2==1);
 			if (p % 2 == 0) {
-				maget_outer.color = [255, 0, 0];
-				maget_inner.color = [0, 0, 255];
+				maget_outer.color = Motor.COLOR_POLE_N;
+				maget_inner.color = Motor.COLOR_POLE_S;
 			} else {
-				maget_outer.color = [0, 0, 255];
-				maget_inner.color = [255, 0, 0];
+				maget_outer.color = Motor.COLOR_POLE_S;
+				maget_inner.color = Motor.COLOR_POLE_N;
 			}
 			// outer
 			for (let d=0; d<=DIV; d++) {
