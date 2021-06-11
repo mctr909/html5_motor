@@ -1,6 +1,6 @@
 const ROTOR_DIAMETER = 250;
 const STATOR_DIAMETER = 400;
-const MAGNET_THICKNESS = 20;
+const MAGNET_THICKNESS = 30;
 
 const STATOR_POLES = [
 	{name:"1", value:1, selected:false},

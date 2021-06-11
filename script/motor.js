@@ -21,11 +21,15 @@ class Slot {
 }
 
 class Magnet {
-	constructor() {
+	/**
+	 * @param {boolean} north 
+	 */
+	constructor(north) {
 		/** @type {Array<vec3>} */
 		this.polygon = [];
 		/** @type {Array<number>} */
 		this.color = [];
+		this.is_north = north;
 	}
 }
 
@@ -44,7 +48,7 @@ class Motor {
 	static get COLOR_U() { return [0, 127, 0] };
 	static get COLOR_V() { return [0, 212, 212] };
 	static get COLOR_W() { return [232, 232, 0] };
-	static get CALC_DIV() { return 48; }
+	static get CALC_DIV() { return 96; }
 
 	constructor() {
 		/** @type {Array<Slot>} */
@@ -146,27 +150,42 @@ class Motor {
 		const PI2 = 8*Math.atan(1);
 		const DIV = Motor.CALC_DIV / pole;
 		this.rotor = [];
-		this.__rotor_radius = diameter / 2;
+		this.__rotor_radius = diameter;
 		for (let p=0; p<pole; p++) {
-			let maget = new Magnet();
+			let maget_outer = new Magnet(p%2==0);
+			let maget_inner = new Magnet(p%2==1);
 			if (p % 2 == 0) {
-				maget.color = [255, 0, 0];
+				maget_outer.color = [255, 0, 0];
+				maget_inner.color = [0, 0, 255];
 			} else {
-				maget.color = [0, 0, 255];
+				maget_outer.color = [0, 0, 255];
+				maget_inner.color = [255, 0, 0];
 			}
 			// outer
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
 				let r = diameter/2;
-				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
+				maget_outer.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
+			for (let d=DIV; 0 <= d; d--) {
+				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
+				let r = diameter/2 - thickness/2;
+				maget_outer.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
+			}
+			this.rotor.push(maget_outer);
+
 			// inner
+			for (let d=0; d<=DIV; d++) {
+				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
+				let r = diameter/2 - thickness/2;
+				maget_inner.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
+			}
 			for (let d=DIV; 0 <= d; d--) {
 				let th = PI2 * (p + d*(1-gap) / DIV + gap*0.5) / pole;
 				let r = diameter/2 - thickness;
-				maget.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
+				maget_inner.polygon.push(new vec3(r*Math.cos(th), r*Math.sin(th)));
 			}
-			this.rotor.push(maget);
+			this.rotor.push(maget_inner);
 		}
 	}
 
@@ -186,13 +205,16 @@ class Motor {
 			/** @type {Array<vec3>} */
 			let disp_pos = [];
 			let magnet = this.rotor[idx_m].polygon;
+			let is_north = this.rotor[idx_m].is_north;
 			for (let idx_d=0; idx_d<magnet.length; idx_d++) {
 				let x = magnet[idx_d].X;
 				let y = magnet[idx_d].Y;
-				let rot_x = x*Math.cos(this.theta) - y*Math.sin(this.theta);
-				let rot_y = x*Math.sin(this.theta) + y*Math.cos(this.theta);
-				disp_pos.push(new vec3(rot_x, rot_y));
-				calc_magnet.push(new Pole(new vec3(rot_x, rot_y), idx_m%2 == 0));
+				let rot_pos = new vec3(
+					x*Math.cos(this.theta) - y*Math.sin(this.theta),
+					x*Math.sin(this.theta) + y*Math.cos(this.theta)
+				);
+				disp_pos.push(rot_pos);
+				calc_magnet.push(new Pole(rot_pos, is_north));
 			}
 			drawer.fillPolygon(disp_pos, this.pos, this.rotor[idx_m].color);
 		}
@@ -249,12 +271,12 @@ class Motor {
 					sum_pole_w -= 1.0 / rw / rw;
 				}
 			}
-			sum_pole_u /= 4 * calc_magnet.length;
-			sum_pole_v /= 4 * calc_magnet.length;
-			sum_pole_w /= 4 * calc_magnet.length;
-			slot_u.bemf_voltage[idx_s] = -4*(sum_pole_u - slot_u.magnetic_pole[idx_s]);
-			slot_v.bemf_voltage[idx_s] = -4*(sum_pole_v - slot_v.magnetic_pole[idx_s]);
-			slot_w.bemf_voltage[idx_s] = -4*(sum_pole_w - slot_w.magnetic_pole[idx_s]);
+			sum_pole_u /= calc_magnet.length;
+			sum_pole_v /= calc_magnet.length;
+			sum_pole_w /= calc_magnet.length;
+			slot_u.bemf_voltage[idx_s] = -2*(sum_pole_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -2*(sum_pole_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -2*(sum_pole_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_pole_u;
 			slot_v.magnetic_pole[idx_s] = sum_pole_v;
 			slot_w.magnetic_pole[idx_s] = sum_pole_w;
