@@ -1,6 +1,5 @@
 const ROTOR_DIAMETER = 200;
 const STATOR_DIAMETER = 300;
-const MAGNET_THICKNESS = 20;
 
 const STATOR_POLES = [
 	{name:"1", value:1, selected:false},
@@ -31,7 +30,7 @@ let gMagnetGap = 0;
 
 gMotor.pos = new vec3(STATOR_DIAMETER/2+10, STATOR_DIAMETER/2+10, 0);
 gMotor.createStator(STATOR_DIAMETER, ROTOR_DIAMETER+gGap, gStatorPole, gStatorGap);
-gMotor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, gRotorPole, gMagnetGap);
+gMotor.createRotor(ROTOR_DIAMETER, gRotorPole, gMagnetGap);
 
 gDrawerS.clear();
 onChangeStatorPole();
@@ -65,7 +64,7 @@ function onChangeStatorPole() {
 function onChangeRotorPole() {
 	let idx = document.getElementById("cmbRotorPole").selectedIndex;
 	gRotorPole = ROTOR_POLES[idx].value;
-	gMotor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, gRotorPole, gMagnetGap);
+	gMotor.createRotor(ROTOR_DIAMETER, gRotorPole, gMagnetGap);
 }
 
 function onScrollStatorGap() {
@@ -81,7 +80,7 @@ function onScrollMagnetGap() {
 	if (tmp == gMagnetGap) return;
 	gMagnetGap = tmp;
 	document.getElementById("lblMagnetGap").innerHTML = gMagnetGap * 16 + "/16";
-	gMotor.createRotor(ROTOR_DIAMETER, MAGNET_THICKNESS, gRotorPole, gMagnetGap);
+	gMotor.createRotor(ROTOR_DIAMETER, gRotorPole, gMagnetGap);
 }
 
 function onScrollGap() {
