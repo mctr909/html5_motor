@@ -1,5 +1,5 @@
 const ROTOR_DIAMETER = 200;
-const STATOR_DIAMETER = 300;
+const STATOR_DIAMETER = 350;
 
 const STATOR_POLES = [
 	{name:"1", value:1, selected:false},

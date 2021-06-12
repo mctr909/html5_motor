@@ -19,7 +19,7 @@ class Rotor {
 	constructor() {
 		/** @type {Array<Pole>} */
 		this.pole = [];
-		this.diameter = 0;
+		this.radius = 0;
 	}
 }
 
@@ -55,12 +55,12 @@ class Motor {
 		this.stator = [];
 		/** @type {Rotor} */
 		this.rotor = null;
-		this.pos = new vec3();
 		this.theta = 0.0;
 		this.omega = 0.0;
 		this.delta_omega = 0.0;
 		this.target_omega = 0.0;
 		this.acc_time = 1.0;
+		this.pos = new vec3();
 		this.__scopePos = 0;
 		this.__scopeU = new vec3();
 		this.__scopeV = new vec3();
@@ -147,35 +147,24 @@ class Motor {
 
 	createRotor(diameter, pole, gap) {
 		const PI2 = 8*Math.atan(1);
-		const STEP = 5;
-		const MAGNET_OUTER = parseInt(diameter / 2 / STEP) * STEP;
-		const MAGNET_INNER = MAGNET_OUTER - STEP*4;
-		const MAGNET_CENTER = (MAGNET_OUTER + MAGNET_INNER) / 2;
-
+		const DIV = 3*Motor.CALC_DIV;
 		this.rotor = new Rotor();
-		this.rotor.diameter = diameter;
+		this.rotor.radius = diameter/2;
 		this.rotor.pole = [];
-		let div = parseInt(128 / pole);
-		for (let idx_p = 0; idx_p < pole; idx_p++) {
-			let ns = (0 == idx_p % 2) ? 1 : -1;
-			for (let idx_r = MAGNET_INNER + STEP; idx_r <= diameter/2; idx_r += STEP) {
-				let force;
-				if (MAGNET_CENTER + STEP <= idx_r && idx_r <= MAGNET_OUTER) {
-					force = ns;
-				} else if (MAGNET_INNER + STEP <= idx_r && idx_r <= MAGNET_CENTER) {
-					force = -ns;
-				} else {
-					force = 0;
-				}
-				for (let idx_t = 0; idx_t < div; idx_t++) {
-					let th = PI2 * (idx_p + idx_t / div) / pole;
-					let thA = PI2 * (idx_p + gap * 0.5) / pole;
-					let thB = PI2 * (idx_p + (1 - gap) + gap * 0.5) / pole;
-					let pos = new vec3(idx_r * Math.cos(th), idx_r * Math.sin(th));
-					if (thA <= th && th <= thB) {
-						this.rotor.pole.push(new Pole(pos, force, true));
-					}
-				}
+		for (let idx_d = 0; idx_d < DIV; idx_d++) {
+			let p = parseInt(pole * idx_d / DIV);
+			let ns = (0 == p % 2) ? 1 : -1;
+			let th = PI2 * idx_d / DIV;
+			let thA = PI2 * (p + gap * 0.5) / pole;
+			let thB = PI2 * (p + (1 - gap) + gap * 0.5) / pole;
+			let pos = new vec3(
+				this.rotor.radius * Math.cos(th),
+				this.rotor.radius * Math.sin(th)
+			);
+			if (th < thA || thB < th) {
+				this.rotor.pole.push(new Pole(pos));
+			} else {
+				this.rotor.pole.push(new Pole(pos, ns, true));
 			}
 		}
 	}
@@ -195,7 +184,7 @@ class Motor {
 			let y = rotor_pole[idx_p].point.Y;
 			rotor_pole[idx_p].rot_pos.X = x*Math.cos(this.theta) - y*Math.sin(this.theta);
 			rotor_pole[idx_p].rot_pos.Y = x*Math.sin(this.theta) + y*Math.cos(this.theta);
-			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 4, this.pos, this.__toHue(rotor_pole[idx_p].force));
+			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 3, this.pos, this.__toHue(rotor_pole[idx_p].force));
 		}
 
 		// stator
@@ -237,9 +226,9 @@ class Motor {
 			let sum_v = 0.0;
 			let sum_w = 0.0;
 			for (let idx_r=0; idx_r<rotor_pole.length; idx_r++) {
-				let ru = 0.1 + pos_u.distance(rotor_pole[idx_r].rot_pos) / this.rotor.diameter;
-				let rv = 0.1 + pos_v.distance(rotor_pole[idx_r].rot_pos) / this.rotor.diameter;
-				let rw = 0.1 + pos_w.distance(rotor_pole[idx_r].rot_pos) / this.rotor.diameter;
+				let ru = 0.2 + pos_u.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
+				let rv = 0.2 + pos_v.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
+				let rw = 0.2 + pos_w.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
 				sum_u += rotor_pole[idx_r].force / ru / ru;
 				sum_v += rotor_pole[idx_r].force / rv / rv;
 				sum_w += rotor_pole[idx_r].force / rw / rw;
@@ -247,9 +236,9 @@ class Motor {
 			sum_u /= rotor_pole.length;
 			sum_v /= rotor_pole.length;
 			sum_w /= rotor_pole.length;
-			slot_u.bemf_voltage[idx_s] = -4*(sum_u - slot_u.magnetic_pole[idx_s]);
-			slot_v.bemf_voltage[idx_s] = -4*(sum_v - slot_v.magnetic_pole[idx_s]);
-			slot_w.bemf_voltage[idx_s] = -4*(sum_w - slot_w.magnetic_pole[idx_s]);
+			slot_u.bemf_voltage[idx_s] = -2*(sum_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -2*(sum_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -2*(sum_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_u;
 			slot_v.magnetic_pole[idx_s] = sum_v;
 			slot_w.magnetic_pole[idx_s] = sum_w;
