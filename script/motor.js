@@ -91,7 +91,7 @@ class Motor {
 			let magnetic_pole = [];
 			let bemf_voltage = [];
 			let magetic_r = outer_diameter / 2 - 5;
-			let bemf_r = inner_diameter / 2 + 5;
+			let bemf_r = inner_diameter / 2 + 10;
 			for (let d=0; d<=DIV; d++) {
 				let th = PI2 * (s + d*(1-gap) / DIV + gap*0.5) / SLOTS;
 				magnetic_line.push(new vec3(magetic_r*Math.cos(th), magetic_r*Math.sin(th)));
@@ -162,7 +162,6 @@ class Motor {
 				this.rotor.radius * Math.sin(th)
 			);
 			if (th < thA || thB < th) {
-				this.rotor.pole.push(new Pole(pos));
 			} else {
 				this.rotor.pole.push(new Pole(pos, ns, true));
 			}
@@ -184,7 +183,7 @@ class Motor {
 			let y = rotor_pole[idx_p].point.Y;
 			rotor_pole[idx_p].rot_pos.X = x*Math.cos(this.theta) - y*Math.sin(this.theta);
 			rotor_pole[idx_p].rot_pos.Y = x*Math.sin(this.theta) + y*Math.cos(this.theta);
-			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 3, this.pos, this.__toHue(rotor_pole[idx_p].force));
+			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 2, this.pos, this.__toHue(rotor_pole[idx_p].force));
 		}
 
 		// stator
@@ -255,7 +254,7 @@ class Motor {
 				let dv = (slot_v[idx_v] + slot_v[idx_v+1]) / 2;
 				slot_vp[idx_p].add(this.pos, posA);
 				slot_vp[idx_p+1].add(this.pos, posB);
-				drawer.drawLine(posA, posB, this.__toHue(dv), 10);
+				drawer.drawLine(posA, posB, this.__toHue(dv), 20);
 				let dm = (slot_m[idx_v] + slot_m[idx_v+1]) / 2;
 				slot_mp[idx_p].add(this.pos, posA);
 				slot_mp[idx_p+1].add(this.pos, posB);
