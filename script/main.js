@@ -1,3 +1,5 @@
+/// <reference path="math.js" />
+/// <reference path="drawer.js" />
 const ROTOR_DIAMETER = 200;
 const STATOR_DIAMETER = 350;
 

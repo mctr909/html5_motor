@@ -183,7 +183,7 @@ class Motor {
 			let y = rotor_pole[idx_p].point.Y;
 			rotor_pole[idx_p].rot_pos.X = x*Math.cos(this.theta) - y*Math.sin(this.theta);
 			rotor_pole[idx_p].rot_pos.Y = x*Math.sin(this.theta) + y*Math.cos(this.theta);
-			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 2, this.pos, this.__toHue(rotor_pole[idx_p].force));
+			drawer.fillCircle(rotor_pole[idx_p].rot_pos, 2, this.pos, Drawer.toHue(rotor_pole[idx_p].force));
 		}
 
 		// stator
@@ -225,19 +225,19 @@ class Motor {
 			let sum_v = 0.0;
 			let sum_w = 0.0;
 			for (let idx_r=0; idx_r<rotor_pole.length; idx_r++) {
-				let ru = 0.2 + pos_u.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
-				let rv = 0.2 + pos_v.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
-				let rw = 0.2 + pos_w.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
-				sum_u += rotor_pole[idx_r].force / ru / ru;
-				sum_v += rotor_pole[idx_r].force / rv / rv;
-				sum_w += rotor_pole[idx_r].force / rw / rw;
+				let ru = 0.25 + pos_u.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
+				let rv = 0.25 + pos_v.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
+				let rw = 0.25 + pos_w.distance(rotor_pole[idx_r].rot_pos) / this.rotor.radius;
+				sum_u += rotor_pole[idx_r].force / ru / ru / ru;
+				sum_v += rotor_pole[idx_r].force / rv / rv / rv;
+				sum_w += rotor_pole[idx_r].force / rw / rw / rw;
 			}
 			sum_u /= rotor_pole.length;
 			sum_v /= rotor_pole.length;
 			sum_w /= rotor_pole.length;
-			slot_u.bemf_voltage[idx_s] = -2*(sum_u - slot_u.magnetic_pole[idx_s]);
-			slot_v.bemf_voltage[idx_s] = -2*(sum_v - slot_v.magnetic_pole[idx_s]);
-			slot_w.bemf_voltage[idx_s] = -2*(sum_w - slot_w.magnetic_pole[idx_s]);
+			slot_u.bemf_voltage[idx_s] = -(sum_u - slot_u.magnetic_pole[idx_s]);
+			slot_v.bemf_voltage[idx_s] = -(sum_v - slot_v.magnetic_pole[idx_s]);
+			slot_w.bemf_voltage[idx_s] = -(sum_w - slot_w.magnetic_pole[idx_s]);
 			slot_u.magnetic_pole[idx_s] = sum_u;
 			slot_v.magnetic_pole[idx_s] = sum_v;
 			slot_w.magnetic_pole[idx_s] = sum_w;
@@ -254,11 +254,11 @@ class Motor {
 				let dv = (slot_v[idx_v] + slot_v[idx_v+1]) / 2;
 				slot_vp[idx_p].add(this.pos, posA);
 				slot_vp[idx_p+1].add(this.pos, posB);
-				drawer.drawLine(posA, posB, this.__toHue(dv), 20);
+				drawer.drawLine(posA, posB, Drawer.toHue(dv), 20);
 				let dm = (slot_m[idx_v] + slot_m[idx_v+1]) / 2;
 				slot_mp[idx_p].add(this.pos, posA);
 				slot_mp[idx_p+1].add(this.pos, posB);
-				drawer.drawLine(posA, posB, this.__toHue(dm), 10);
+				drawer.drawLine(posA, posB, Drawer.toHue(dm), 10);
 			}
 		}
 	}
@@ -329,39 +329,5 @@ class Motor {
 		if (8*Math.atan(1) <= this.theta) {
 			this.theta -= 8*Math.atan(1);
 		}
-	}
-
-	/**
-	 * @param {number} v
-	 * @returns {Array<number>}
-	 */
-	__toHue(v) {
-		if (1 < v) v = 1;
-		if (v < -1) v = -1;
-		v = 2 * v / (v*v+1);
-		v = parseInt(1023*(v/2+0.5));
-
-		let r, g, b;
-		if(v < 256) {
-			r = 0;
-			g = v;
-			b = 255;
-		} else if(v < 512) {
-			v -= 256;
-			r = 0;
-			g = 255;
-			b = 255-v;
-		} else if(v < 768) {
-			v -= 512;
-			r = v;
-			g = 255;
-			b = 0;
-		} else {
-			v -= 768;
-			r = 255;
-			g = 255 - v;
-			b = 0;
-		}
-		return [r, g, b];
 	}
 }

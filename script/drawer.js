@@ -8,30 +8,15 @@ class Drawer {
 	 */
 	constructor(tagetId, width, height) {
 		this.mOffset = new vec3();
-		this.mCursor = new vec3();
-		this.mDrag = false;
-		this.__cursor = new vec3();
 
 		/** @type {HTMLCanvasElement} */
 		this.mElement = document.getElementById(tagetId);
-		this.mElement.width =width;
+		this.mElement.width = width;
 		this.mElement.height = height;
 
 		/** @type {CanvasRenderingContext2D} */
 		this.__ctx = this.mElement.getContext("2d");
 		this.__ctx.scale(1, 1);
-
-		let th = this;
-		this.mElement.onmousedown = function(event){
-			th.mDrag = true;
-		}
-		this.mElement.onmouseup = function(event){
-			th.mDrag = false;
-		}
-		this.mElement.onmousemove = function(event){
-			th.__cursor.X = event.offsetX;
-			th.__cursor.Y = event.offsetY;
-		};
 
 		window.requestNextAnimationFrame = (function () {
 			var originalWebkitRequestAnimationFrame = undefined;
@@ -107,13 +92,6 @@ class Drawer {
 	get FONT_NAME() { return "Cambria Math"; }
 
 	/**
-	 * @return {vec3}
-	 */
-	get Cursor() {
-		return new vec3(this.mCursor.X, this.mCursor.Y);
-	}
-
-	/**
 	 * @param {vec3} offset
 	 */
 	set Offset(offset) {
@@ -126,7 +104,7 @@ class Drawer {
 	 * @param {[number, number, number]} color
 	 * @param {number} width
 	 */
-	drawLine(a, b, color = [0,0,0], width=2) {
+	drawLine(a, b, color = [0,0,0], width = 1) {
 		this.ctx.beginPath();
 		this.__drawLine(a, b, color, width);
 		this.ctx.setLineDash([]);
@@ -139,13 +117,19 @@ class Drawer {
 	 * @param {[number, number, number]} color
 	 * @param {number} width
 	 */
-	drawLineD(a, b, color = [0,0,0], width=2) {
+	drawLineD(a, b, color = [0,0,0], width = 1) {
 		this.ctx.beginPath();
 		this.__drawLine(a, b, color, width);
 		this.ctx.setLineDash([this.ctx.lineWidth, this.ctx.lineWidth*2]);
 		this.ctx.stroke();
 	}
 
+	/**
+	 * @param {vec3} a
+	 * @param {vec3} b
+	 * @param {[number, number, number]} color
+	 * @param {number} width
+	 */
 	__drawLine(a, b, color, width) {
 		let x1 = a.X + this.mOffset.X;
 		let y1 = a.Y + this.mOffset.Y;
@@ -155,6 +139,57 @@ class Drawer {
 		this.ctx.lineWidth = width;
 		this.ctx.moveTo(x1, y1);
 		this.ctx.lineTo(x2, y2);
+	}
+
+	/**
+	 * @param {vec3} a
+	 * @param {vec3} b
+	 * @param {[number, number, number]} color
+	 * @param {number} width
+	 */
+	drawArrow(a, b, color = [0,0,0], width = 2) {
+		this.ctx.beginPath();
+		this.__drawLine(a, b, color, width);
+		this.ctx.setLineDash([]);
+		this.ctx.stroke();
+		this.__fillArrow(a, b, color);
+	}
+
+	/**
+	 * @param {vec3} a
+	 * @param {vec3} b
+	 * @param {[number, number, number]} color
+	 * @param {number} width
+	 */
+	drawArrowD(a, b, color = [0,0,0], width = 2) {
+		this.ctx.beginPath();
+		this.__drawLine(a, b, color, width);
+		this.ctx.setLineDash([this.ctx.lineWidth, this.ctx.lineWidth*2]);
+		this.ctx.stroke();
+		this.__fillArrow(a, b, color);
+	}
+
+	/**
+	 * @param {vec3} a
+	 * @param {vec3} b
+	 * @param {[number, number, number]} color
+	 */
+	__fillArrow(a, b, color) {
+		const SIZE = 15;
+		let polygon = [
+			new vec3(0, 0),
+			new vec3(-1, 0.33),
+			new vec3(-1, -0.33),
+			new vec3(0, 0)
+		];
+		let th = Math.atan2(b.Y - a.Y, b.X - a.X);
+		for (let i=0; i<polygon.length; i++) {
+			let x = polygon[i].X;
+			let y = polygon[i].Y;
+			polygon[i].X = SIZE * (x*Math.cos(th) - y*Math.sin(th));
+			polygon[i].Y = SIZE * (x*Math.sin(th) + y*Math.cos(th));
+		}
+		this.fillPolygon(polygon, b, color);;
 	}
 
 	/**
@@ -203,7 +238,7 @@ class Drawer {
 	 * @param {vec3} ofs
 	 * @param {[number, number, number]} color
 	 */
-	 fillPolygon(point, ofs=new vec3(), color = [0,0,0]) {
+	fillPolygon(point, ofs = new vec3(), color = [0,0,0]) {
 		this.ctx.beginPath();
 		this.ctx.moveTo(point[0].X + ofs.X, point[0].Y + ofs.Y);
 		for (let i=1; i<point.length; i++) {
@@ -256,31 +291,6 @@ class Drawer {
 		return this.ctx.measureText(value).width;
 	}
 
-	/**
-	 * @param {vec3} pos
-	 * @param {boolean} drag
-	 * @param {number} limit
-	 */
-	hasGripped(pos, drag, limit = 10) {
-		let ret = false;
-		if (drag) {
-			ret = this.mDrag;
-		} else {
-			if (this.mDrag) {
-				let sx = pos.X - this.mCursor.X;
-				let sy = pos.Y - this.mCursor.Y;
-				if (Math.sqrt(sx*sx + sy*sy) <= limit) {
-					ret = true;
-				}
-			}
-		}
-		if (ret) {
-			pos.X = this.mCursor.X;
-			pos.Y = this.mCursor.Y;
-		}
-		return ret;
-	}
-
 	clear() {
 		var w = this.mElement.width;
 		var h = this.mElement.height;
@@ -289,7 +299,39 @@ class Drawer {
 		this.drawLine(new vec3(w, 0), new vec3(w, h)); // Right
 		this.drawLine(new vec3(0, h), new vec3(w, h)); // Bottom
 		this.drawLine(new vec3(0, 0), new vec3(0, h)); // Left
-		this.mCursor.X = this.__cursor.X;
-		this.mCursor.Y = this.__cursor.Y;
+	}
+
+	/**
+	 * @param {number} v
+	 * @returns {[number, number, number]}
+	 */
+	static toHue(v) {
+		if (1 < v) v = 1;
+		if (v < -1) v = -1;
+		v = 2 * v / (v*v+1);
+		v = parseInt(1023*(v/2+0.5));
+
+		let r, g, b;
+		if(v < 256) {
+			r = 0;
+			g = v;
+			b = 255;
+		} else if(v < 512) {
+			v -= 256;
+			r = 0;
+			g = 255;
+			b = 255-v;
+		} else if(v < 768) {
+			v -= 512;
+			r = v;
+			g = 255;
+			b = 0;
+		} else {
+			v -= 768;
+			r = 255;
+			g = 255 - v;
+			b = 0;
+		}
+		return [r, g, b];
 	}
 }
